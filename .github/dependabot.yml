@@ -1,39 +1,23 @@
+# Version updates are deliberately narrow. Routine "bump to latest" PRs for npm
+# cost more than they return at this stage: the first run opened 16, of which
+# two mattered. The valuable half is Dependabot *security* updates, which are a
+# repo setting rather than this file, and which only fire on a real advisory.
+#
+# Coverage without npm/docker version updates:
+#   npm    -> Dependabot security updates, plus `pnpm audit --audit-level=high`
+#             in security.yml, which blocks the PR rather than only notifying.
+#   docker -> the Trivy image scans in security.yml.
+#   actions-> nothing else looks at these, hence the one entry below. A stale pin
+#             is not hypothetical: trivy-action@0.28.0 was retagged out of
+#             existence and failed every scan job until it was bumped.
 version: 2
 
 updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-    open-pull-requests-limit: 10
-    versioning-strategy: increase
-    groups:
-      # One PR per ecosystem cluster: a split React/Next bump is unmergeable.
-      next:
-        patterns: ["next", "eslint-config-next", "@next/*", "react", "react-dom", "@types/react*"]
-      typescript-tooling:
-        patterns:
-          ["typescript", "typescript-eslint", "eslint", "@eslint/*", "prettier", "tsup", "tsx"]
-      drizzle:
-        patterns: ["drizzle-orm", "drizzle-kit", "postgres"]
-      dev-minor-patch:
-        dependency-type: development
-        update-types: ["minor", "patch"]
-
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]

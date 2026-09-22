@@ -1,4 +1,17 @@
-ALTER TYPE "public"."alert_delivery_status" ADD VALUE 'dead';--> statement-breakpoint
+-- `ALTER TYPE ... ADD VALUE` cannot be used in the transaction that added it
+-- (Postgres 55P04), and the migrator applies every pending migration inside a
+-- single transaction -- so on a fresh database 0004's backfill to 'dead' failed
+-- while an incrementally-migrated one succeeded. Swapping the type wholesale is
+-- fully transactional, and converges on the same enum either way.
+ALTER TYPE "public"."alert_delivery_status" RENAME TO "alert_delivery_status_old";--> statement-breakpoint
+CREATE TYPE "public"."alert_delivery_status" AS ENUM('pending', 'sending', 'sent', 'failed', 'suppressed', 'dead');--> statement-breakpoint
+ALTER TABLE "alert_deliveries" ALTER COLUMN "status" DROP DEFAULT;--> statement-breakpoint
+ALTER TABLE "alert_deliveries" ALTER COLUMN "status" SET DATA TYPE "public"."alert_delivery_status" USING "status"::text::"public"."alert_delivery_status";--> statement-breakpoint
+ALTER TABLE "alert_deliveries" ALTER COLUMN "status" SET DEFAULT 'pending';--> statement-breakpoint
+ALTER TABLE "status_page_notifications" ALTER COLUMN "status" DROP DEFAULT;--> statement-breakpoint
+ALTER TABLE "status_page_notifications" ALTER COLUMN "status" SET DATA TYPE "public"."alert_delivery_status" USING "status"::text::"public"."alert_delivery_status";--> statement-breakpoint
+ALTER TABLE "status_page_notifications" ALTER COLUMN "status" SET DEFAULT 'pending';--> statement-breakpoint
+DROP TYPE "public"."alert_delivery_status_old";--> statement-breakpoint
 CREATE TABLE "user_mfa_factors" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,

@@ -51,7 +51,7 @@ jobs:
           tags: sentinel-${{ matrix.target }}:scan
           cache-from: type=gha,scope=${{ matrix.target }}
       - name: Scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: sentinel-${{ matrix.target }}:scan
           format: sarif
@@ -67,7 +67,7 @@ jobs:
       # Separate gating pass: the SARIF upload above must happen even when the
       # scan finds something, so the failure is asserted afterwards.
       - name: Fail on HIGH/CRITICAL
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: sentinel-${{ matrix.target }}:scan
           format: table

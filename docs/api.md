@@ -32,11 +32,11 @@ The four cases are deliberately indistinguishable. A response that separated "no
 
 Every key carries an explicit set of scopes, chosen when it is created:
 
-| Scope                 | Grants                                    |
-| --------------------- | ----------------------------------------- |
-| `monitors:read`     | `GET /api/v1/monitors`                  |
+| Scope               | Grants                                    |
+| ------------------- | ----------------------------------------- |
+| `monitors:read`     | `GET /api/v1/monitors`                    |
 | `monitors:write`    | Reserved for future write endpoints       |
-| `incidents:read`    | `GET /api/v1/incidents`                 |
+| `incidents:read`    | `GET /api/v1/incidents`                   |
 | `incidents:write`   | Reserved for future write endpoints       |
 | `status_pages:read` | Reserved for future status-page endpoints |
 
@@ -66,18 +66,18 @@ Every endpoint under `/api/` is metered with a token bucket. The REST endpoints 
 **API key id**, so one noisy key cannot spend another's budget, and a shared NAT address is not a
 shared limit. The heartbeat endpoint is keyed on the token in its path.
 
-| Surface                             | Burst | Refills over |
-| ----------------------------------- | ----- | ------------ |
-| `GET /api/v1/*`                   | 120   | 60s          |
+| Surface                            | Burst | Refills over |
+| ---------------------------------- | ----- | ------------ |
+| `GET /api/v1/*`                    | 120   | 60s          |
 | `GET\|POST /api/heartbeat/{token}` | 60    | 60s          |
 
 Successful responses carry the headers too, so a client can slow itself down before it is refused:
 
-| Header                  | Meaning                                            |
-| ----------------------- | -------------------------------------------------- |
-| `RateLimit-Limit`     | Burst capacity                                     |
-| `RateLimit-Remaining` | Requests left in the bucket                        |
-| `RateLimit-Policy`    | `<capacity>;w=<window seconds>`                  |
+| Header                | Meaning                                   |
+| --------------------- | ----------------------------------------- |
+| `RateLimit-Limit`     | Burst capacity                            |
+| `RateLimit-Remaining` | Requests left in the bucket               |
+| `RateLimit-Policy`    | `<capacity>;w=<window seconds>`           |
 | `Retry-After`         | Seconds to wait — sent**only** on a `429` |
 
 Over budget returns `429`:
@@ -134,10 +134,10 @@ Requires the `incidents:read` scope. Incidents for your organisation, newest fir
 
 **Query parameters**
 
-| Parameter | Default   | Meaning                                    |
-| --------- | --------- | ------------------------------------------ |
-| `open`  | `false` | `true` returns only unresolved incidents |
-| `limit` | `50`    | Maximum incidents to return (cap 200)      |
+| Parameter | Default | Meaning                                  |
+| --------- | ------- | ---------------------------------------- |
+| `open`    | `false` | `true` returns only unresolved incidents |
+| `limit`   | `50`    | Maximum incidents to return (cap 200)    |
 
 ```bash
 curl -H "Authorization: Bearer $SENTINEL_API_KEY" \
@@ -222,10 +222,10 @@ Webhook alert channels `POST` JSON when an incident opens or resolves:
 
 When the channel has a secret configured, two headers are sent:
 
-| Header                   | Contents                                              |
-| ------------------------ | ----------------------------------------------------- |
+| Header                 | Contents                                            |
+| ---------------------- | --------------------------------------------------- |
 | `X-Sentinel-Signature` | `HMAC-SHA256(secret, "{timestamp}.{rawBody}")`, hex |
-| `X-Sentinel-Timestamp` | Unix seconds                                          |
+| `X-Sentinel-Timestamp` | Unix seconds                                        |
 
 Compute the HMAC over the timestamp, a literal `.`, and the **raw** request body — parsing and
 re-serialising the JSON first will change the bytes and break the comparison.
@@ -271,15 +271,15 @@ or target URLs.
 Every failed check carries a code identifying which phase of the request broke. The dashboard
 renders each with a plain-English explanation and a suggested next step.
 
-| Phase     | Codes                                                                                                                                  |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| DNS       | `DNS_NXDOMAIN`, `DNS_TIMEOUT`, `DNS_SERVFAIL`                                                                                    |
-| TCP       | `TCP_REFUSED`, `TCP_TIMEOUT`, `TCP_RESET`, `TCP_UNREACHABLE`                                                                   |
-| TLS       | `TLS_EXPIRED`, `TLS_HOSTNAME_MISMATCH`, `TLS_UNTRUSTED`, `TLS_HANDSHAKE_FAILED`, `TLS_PROTOCOL_ERROR`, `CERT_EXPIRING`     |
+| Phase     | Codes                                                                                                                        |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| DNS       | `DNS_NXDOMAIN`, `DNS_TIMEOUT`, `DNS_SERVFAIL`                                                                                |
+| TCP       | `TCP_REFUSED`, `TCP_TIMEOUT`, `TCP_RESET`, `TCP_UNREACHABLE`                                                                 |
+| TLS       | `TLS_EXPIRED`, `TLS_HOSTNAME_MISMATCH`, `TLS_UNTRUSTED`, `TLS_HANDSHAKE_FAILED`, `TLS_PROTOCOL_ERROR`, `CERT_EXPIRING`       |
 | HTTP      | `HTTP_4XX`, `HTTP_5XX`, `HTTP_TIMEOUT`, `HTTP_REDIRECT_LOOP`, `HTTP_TOO_LARGE`                                               |
 | Assertion | `ASSERT_KEYWORD_MISSING`, `ASSERT_KEYWORD_PRESENT`, `ASSERT_JSONPATH_FAILED`, `ASSERT_HEADER_FAILED`, `ASSERT_RESPONSE_TIME` |
-| Heartbeat | `HEARTBEAT_MISSED`                                                                                                                   |
-| Policy    | `BLOCKED_TARGET`, `DOMAIN_EXPIRING`, `UNKNOWN`                                                                                   |
+| Heartbeat | `HEARTBEAT_MISSED`                                                                                                           |
+| Policy    | `BLOCKED_TARGET`, `DOMAIN_EXPIRING`, `UNKNOWN`                                                                               |
 
 `BLOCKED_TARGET` means the SSRF guard refused the address — a private range, a loopback address,
 or a cloud metadata endpoint — and no connection was attempted.
@@ -288,15 +288,15 @@ or a cloud metadata endpoint — and no connection was attempted.
 
 ## Regions
 
-| Code    | Location                |
-| ------- | ----------------------- |
+| Code  | Location                |
+| ----- | ----------------------- |
 | `bom` | Mumbai, India           |
 | `sin` | Singapore               |
 | `fra` | Frankfurt, Germany      |
 | `lhr` | London, United Kingdom  |
 | `iad` | Ashburn, United States  |
 | `sjc` | San Jose, United States |
-| `gru` | São Paulo, Brazil      |
+| `gru` | São Paulo, Brazil       |
 | `syd` | Sydney, Australia       |
 
 `bom`, `fra` and `iad` run by default in development.
