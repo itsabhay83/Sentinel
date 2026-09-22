@@ -65,17 +65,22 @@ export default async function LandingPage() {
             declares an outage when a quorum of regions agrees — so a bad transit route in São Paulo stops being your 3am problem.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <LinkButton href="/signup" size="lg">
-              Create an account <ArrowRight className="size-4" />
-            </LinkButton>
+            <SignUpButton mode="modal">
+              <Button size="lg">
+                Create an account <ArrowRight className="size-4" />
+              </Button>
+            </SignUpButton>
             <LinkButton href="/status/acme" variant="outline" size="lg">
               See a live status page
             </LinkButton>
           </div>
-          <p className="mt-4 text-sm text-ink-3">
-            Demo login:{" "}
-            <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-xs text-ink-2">demo@sentinel.dev / sentinel123</code>
-          </p>
+          {/*
+            The seeded `demo@sentinel.dev / sentinel123` pair was advertised here
+            while this app hashed its own passwords. Clerk holds the credentials
+            now and never saw that user, so the line would have been an
+            invitation to fail at the login screen.
+          */}
+          <p className="mt-4 text-sm text-ink-3">Free while in beta. No card required.</p>
         </div>
 
         <div className="mt-20 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

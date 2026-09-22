@@ -1,5 +1,6 @@
 "use client";
 
+import { SignOutButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -24,12 +25,10 @@ export function Sidebar({
   org,
   user,
   openIncidents,
-  logout,
 }: {
   org: { name: string; slug: string; plan: string };
   user: { name: string; email: string };
   openIncidents: number;
-  logout: () => Promise<void>;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -65,15 +64,21 @@ export function Sidebar({
         <p className="truncate text-sm text-ink">{user.name || user.email}</p>
         <p className="truncate text-xs text-ink-3">{user.email}</p>
       </div>
-      <form action={logout}>
+      {/*
+        Was a <form action={logoutAction}> against the local sessions table.
+        Clerk owns session revocation now, so this is its button wearing the
+        existing styling. redirectUrl sends signed-out users to the marketing
+        page rather than back into the protected shell.
+      */}
+      <SignOutButton redirectUrl="/">
         <button
-          type="submit"
+          type="button"
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
         >
           <LogOut className="size-4 text-ink-3" />
           Sign out
         </button>
-      </form>
+      </SignOutButton>
     </div>
   );
 

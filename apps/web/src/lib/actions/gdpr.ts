@@ -24,7 +24,9 @@ import { sql as rawSql } from "@sentinel/db";
 import { z } from "zod";
 import { planAccountDeletion } from "@/lib/account-deletion";
 import { recordAudit } from "@/lib/audit";
-import { destroySession, requireSession } from "@/lib/auth";
+import { clerkClient } from "@clerk/nextjs/server";
+
+import { requireSession } from "@/lib/auth";
 import { assertCsrf } from "@/lib/csrf";
 import { buildOrganizationExport } from "@/lib/data-export";
 import { STATUS_PAGE_CACHE_TAG } from "@/lib/queries";
@@ -108,14 +110,13 @@ export async function deleteOrganizationAction(
       DELETE FROM checks
       WHERE monitor_id IN (SELECT id FROM monitors WHERE organization_id = ${org.id})
     `;
-    await tx`UPDATE sessions SET active_organization_id = NULL WHERE active_organization_id = ${org.id}`;
     await tx`DELETE FROM organizations WHERE id = ${org.id}`;
   });
 
   // The public status page is cached for 30s; a deleted tenant must stop being
   // served from that cache immediately, not eventually.
   revalidateTag(STATUS_PAGE_CACHE_TAG);
-  redirect("/onboarding");
+  redirect("/dashboard");
 }
 
 export async function deleteAccountAction(
@@ -158,17 +159,18 @@ export async function deleteAccountAction(
           SELECT id FROM monitors WHERE organization_id = ANY(${plan.soleMemberOrgIds}::text[])
         )
       `;
-      await tx`
-        UPDATE sessions SET active_organization_id = NULL
-        WHERE active_organization_id = ANY(${plan.soleMemberOrgIds}::text[])
-      `;
       await tx`DELETE FROM organizations WHERE id = ANY(${plan.soleMemberOrgIds}::text[])`;
     }
-    await tx`DELETE FROM verifications WHERE lower(identifier) = ${email}`;
     await tx`DELETE FROM users WHERE id = ${session.user.id}`;
   });
 
-  await destroySession();
+  // The local row is gone, but the Clerk user is the actual account -- leaving
+  // it would let the same person sign straight back in and be re-provisioned by
+  // ensureMembership(), which is the opposite of deleting an account. Clerk
+  // revokes their sessions as part of this.
+  const clerk = await clerkClient();
+  await clerk.users.deleteUser(session.user.id);
+
   revalidateTag(STATUS_PAGE_CACHE_TAG);
-  redirect("/login");
+  redirect("/");
 }

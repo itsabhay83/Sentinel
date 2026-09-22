@@ -1,5 +1,4 @@
 import { Sidebar } from "@/components/shell";
-import { logoutAction } from "@/lib/actions/auth";
 import { requireOrg } from "@/lib/auth";
 import { getOrgSummary } from "@/lib/queries";
 
@@ -16,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
-      <Sidebar org={org} user={user} openIncidents={summary.openIncidents} logout={logoutAction} />
+      <Sidebar org={org} user={user} openIncidents={summary.openIncidents} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );

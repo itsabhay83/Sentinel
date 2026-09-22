@@ -18,7 +18,7 @@ import { limitsFor } from "@sentinel/shared";
 import { generateId } from "@sentinel/shared/server";
 import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
-import { getSession } from "@/lib/auth";
+import { getSession, setActiveOrg } from "@/lib/auth";
 import { assertCsrf, assertSameOrigin } from "@/lib/csrf";
 import { stashInvite } from "@/lib/invite-cookie";
 import { appUrl, sendMail } from "@/lib/mail";
@@ -164,7 +164,7 @@ export async function acceptInvitationAction(invitationId: string): Promise<void
     // An invited person often has no account yet, so park the invitation in a
     // cookie and let either login or signup deliver them back to it.
     await stashInvite(invitationId);
-    redirect("/login");
+    redirect("/sign-in");
   }
 
   const [invite] = await rawSql<{ organization_id: string; email: string; role: string }[]>`
@@ -182,13 +182,13 @@ export async function acceptInvitationAction(invitationId: string): Promise<void
       ON CONFLICT ON CONSTRAINT members_org_user_unique DO NOTHING
     `;
     await tx`UPDATE invitations SET status = 'accepted' WHERE id = ${invitationId}`;
-    // Drop the user straight into the organization they just joined rather than
-    // whichever one they happened to have open.
-    await tx`
-      UPDATE sessions SET active_organization_id = ${invite.organization_id}
-      WHERE token = ${session.token}
-    `;
   });
+
+  // Drop the user straight into the organization they just joined rather than
+  // whichever one they happened to have open. This moved out of the
+  // transaction with the session row: it is a cookie write now, and a cookie
+  // cannot participate in a database rollback.
+  await setActiveOrg(invite.organization_id);
 
   await recordAudit({
     action: "member.joined",
