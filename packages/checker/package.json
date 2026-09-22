@@ -15,7 +15,7 @@
     "@sentinel/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
+    "@types/node": "^26.6.2",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"
   }
