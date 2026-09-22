@@ -22,9 +22,9 @@ jobs:
     name: Install
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -35,14 +35,14 @@ jobs:
     needs: install
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-lint-${{ runner.os }}-${{ github.sha }}
@@ -55,14 +55,14 @@ jobs:
     needs: install
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-typecheck-${{ runner.os }}-${{ github.sha }}
@@ -113,16 +113,16 @@ jobs:
       LOG_LEVEL: warn
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Apply migrations
         run: pnpm db:migrate
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-test-${{ runner.os }}-${{ github.sha }}
@@ -150,14 +150,14 @@ jobs:
       REGION_CODE: bom
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-build-${{ runner.os }}-${{ github.sha }}
@@ -211,9 +211,9 @@ jobs:
       E2E_BASE_URL: http://localhost:3000
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -222,7 +222,7 @@ jobs:
         run: pnpm db:migrate
       - name: Seed demo data
         run: pnpm db:seed
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-e2e-${{ runner.os }}-${{ github.sha }}
@@ -251,7 +251,7 @@ jobs:
       - run: pnpm test:e2e
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
@@ -268,9 +268,9 @@ jobs:
       matrix:
         target: [scheduler, probe, web]
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
         with:
           context: .
           target: ${{ matrix.target }}
