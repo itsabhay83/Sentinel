@@ -15,7 +15,7 @@
     "@sentinel/db": "workspace:*",
     "@sentinel/shared": "workspace:*",
     "@sentry/node": "^10.75.0",
-    "bullmq": "^5.34.10",
+    "bullmq": "^6.3.8",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.4.2",
     "pino": "^9.6.0",
