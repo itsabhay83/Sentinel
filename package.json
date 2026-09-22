@@ -38,14 +38,14 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.10.5",
     "@vitest/coverage-v8": "^2.1.9",
-    "eslint": "^9.39.5",
+    "eslint": "^10.11.0",
     "eslint-config-next": "^15.5.25",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^15.15.0",
-    "prettier": "^3.4.2",
+    "prettier": "^3.9.8",
     "tsx": "^4.19.2",
     "turbo": "^2.3.3",
-    "typescript": "^5.7.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.70.0",
     "vitest": "^2.1.8"
   }
