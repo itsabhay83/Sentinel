@@ -2,7 +2,7 @@
   "name": "sentinel",
   "private": true,
   "version": "1.0.0",
-  "description": "Sentinel — multi-region uptime & performance monitoring with quorum consensus",
+  "description": "Sentinel \u2014 multi-region uptime & performance monitoring with quorum consensus",
   "type": "module",
   "packageManager": "pnpm@10.26.2",
   "engines": {
@@ -37,7 +37,7 @@
     "@next/eslint-plugin-next": "^15.5.25",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.10.5",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/coverage-v8": "^3.2.6",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.25",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -47,6 +47,12 @@
     "turbo": "^2.3.3",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.70.0",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "^6.4.3",
+      "postcss": "^8.5.18"
+    }
   }
 }

@@ -30,8 +30,8 @@ pnpm dev:probes     # three regional probes (bom, fra, iad) in one terminal
 
 Open [http://localhost:3000](http://localhost:3000) and sign in:
 
-|          |                       |
-| -------- | --------------------- |
+|          |                     |
+| -------- | ------------------- |
 | Email    | `demo@sentinel.dev` |
 | Password | `sentinel123`       |
 
@@ -82,34 +82,34 @@ packages/
 
 With `N` regions reporting and `F` of them failing:
 
-| Condition                       | Verdict                                                  |
-| ------------------------------- | -------------------------------------------------------- |
-| `N < minRegionsRequired`      | `INCONCLUSIVE` — not enough evidence to accuse anyone |
-| `F == 0`                      | `UP`                                                   |
-| `F >= ceil(N × quorumRatio)` | `DOWN`                                                 |
-| otherwise                       | `PARTIAL_OUTAGE`                                       |
+| Condition                    | Verdict                                               |
+| ---------------------------- | ----------------------------------------------------- |
+| `N < minRegionsRequired`     | `INCONCLUSIVE` — not enough evidence to accuse anyone |
+| `F == 0`                     | `UP`                                                  |
+| `F >= ceil(N × quorumRatio)` | `DOWN`                                                |
+| otherwise                    | `PARTIAL_OUTAGE`                                      |
 
 Defaults are `quorumRatio 0.6`, `minRegionsRequired 2`, and two consecutive confirming cycles
 before a status flips. A region that fails far more than its peers gets **quarantined** and
 drops out of the quorum entirely, because that is a probe fault, not a customer outage.
 
-`DEGRADED` is layered on top of a healthy verdict: if the median latency across the *passing*
+`DEGRADED` is layered on top of a healthy verdict: if the median latency across the _passing_
 regions breaches the monitor's threshold, the monitor is up but unwell.
 
 ---
 
 ## Commands
 
-|                                                       |                                                      |
-| ----------------------------------------------------- | ---------------------------------------------------- |
-| `pnpm setup`                                        | Containers up, migrate, seed — the whole cold start |
-| `pnpm dev`                                          | Everything via Turborepo                             |
-| `pnpm dev:web` / `dev:scheduler` / `dev:probes` | Individual processes                                 |
-| `pnpm build`                                        | Production build of every package                    |
-| `pnpm typecheck`                                    | `tsc --noEmit` across the workspace                |
-| `pnpm test`                                         | Vitest across the workspace (133 tests)              |
-| `pnpm db:migrate` / `db:seed` / `db:studio`     | Database lifecycle                                   |
-| `pnpm infra:up` / `infra:down` / `infra:reset`  | Docker containers (`reset` destroys volumes)       |
+|                                                 |                                                     |
+| ----------------------------------------------- | --------------------------------------------------- |
+| `pnpm setup`                                    | Containers up, migrate, seed — the whole cold start |
+| `pnpm dev`                                      | Everything via Turborepo                            |
+| `pnpm dev:web` / `dev:scheduler` / `dev:probes` | Individual processes                                |
+| `pnpm build`                                    | Production build of every package                   |
+| `pnpm typecheck`                                | `tsc --noEmit` across the workspace                 |
+| `pnpm test`                                     | Vitest across the workspace (133 tests)             |
+| `pnpm db:migrate` / `db:seed` / `db:studio`     | Database lifecycle                                  |
+| `pnpm infra:up` / `infra:down` / `infra:reset`  | Docker containers (`reset` destroys volumes)        |
 
 ---
 
@@ -117,16 +117,16 @@ regions breaches the monitor's threshold, the monitor is up but unwell.
 
 `.env.example` documents every variable. The ones that matter:
 
-| Variable                | Purpose                                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | Postgres connection string                                                                    |
-| `REDIS_URL`           | Redis connection string                                                                       |
-| `ENCRYPTION_KEY`      | 64 hex chars. Encrypts monitor headers, bodies and webhook secrets at rest                    |
-| `BETTER_AUTH_SECRET`  | Session secret                                                                                |
-| `NEXT_PUBLIC_APP_URL` | Used in alert bodies and status-page links                                                    |
+| Variable              | Purpose                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Postgres connection string                                                              |
+| `REDIS_URL`           | Redis connection string                                                                 |
+| `ENCRYPTION_KEY`      | 64 hex chars. Encrypts monitor headers, bodies and webhook secrets at rest              |
+| `BETTER_AUTH_SECRET`  | Session secret                                                                          |
+| `NEXT_PUBLIC_APP_URL` | Used in alert bodies and status-page links                                              |
 | `RESEND_API_KEY`      | Optional.**Empty means email alerts are logged to stdout**, which is what the demo does |
-| `REGION_CODE`         | Which region a probe process claims to be                                                     |
-| `PROBE_CONCURRENCY`   | Simultaneous checks per probe                                                                 |
+| `REGION_CODE`         | Which region a probe process claims to be                                               |
+| `PROBE_CONCURRENCY`   | Simultaneous checks per probe                                                           |
 
 Generate a real encryption key with `openssl rand -hex 32`.
 

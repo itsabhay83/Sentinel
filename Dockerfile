@@ -80,13 +80,32 @@ ENV NODE_ENV=production \
 RUN pnpm --filter @sentinel/web build
 
 
+# runtime-base — what the shipped images actually derive from.
+#
+# Every runtime stage below starts `node` directly and never shells out to a
+# package manager, so npm and corepack are build-time only. They are removed
+# here because Trivy scans the base image's own bundled dependencies: npm
+# vendors pacote, sigstore, tar, brace-expansion, ip-address and picomatch,
+# which accounted for all 11 HIGH/CRITICAL findings against these images while
+# none of them is reachable from application code. Deleting the package manager
+# is the honest fix -- a production image has no business shipping one -- rather
+# than suppressing the findings in a .trivyignore.
+FROM base AS runtime-base
+RUN rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx \
+           /usr/local/bin/corepack \
+           /usr/local/bin/pnpm /usr/local/bin/pnpx \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+           /root/.npm /root/.cache
+
 # scheduler — dispatcher, consensus, alerting. Also carries the migrate and
 # seed CLIs so one-shot jobs reuse this image.
 #
 # migrate.js resolves its SQL folder relative to its own file
 # (`dirname(import.meta.url)/../migrations`), which is why the drizzle
 # migrations are copied to /app/apps/scheduler/migrations and nowhere else.
-FROM base AS scheduler
+FROM runtime-base AS scheduler
 RUN apk add --no-cache ca-certificates
 ENV NODE_ENV=production \
     SCHEDULER_HEALTH_PORT=4000
@@ -110,7 +129,7 @@ CMD ["node", "dist/index.js"]
 # capability so the unprivileged `node` user can open a raw socket — the
 # container itself must still hold CAP_NET_RAW (Docker's default; under
 # Kubernetes it has to be added back explicitly, see deploy/k8s).
-FROM base AS probe
+FROM runtime-base AS probe
 RUN apk add --no-cache iputils ca-certificates libcap \
  && setcap cap_net_raw+ep "$(readlink -f "$(command -v ping)")" \
  && apk del libcap
@@ -130,7 +149,7 @@ CMD ["node", "dist/index.js"]
 # web — the standalone Next server. `output: "standalone"` (apps/web/
 # next.config.ts) emits a self-contained node_modules, so nothing from the
 # build stage's dependency tree is carried over.
-FROM base AS web
+FROM runtime-base AS web
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
