@@ -1,0 +1,260 @@
+# Sentinel — application services.
+#
+# This file is an OVERLAY on docker-compose.yml, which keeps postgres and redis
+# on their own so the existing `pnpm infra:up` dev workflow is untouched. Always
+# merge the two:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
+#
+# ./start.sh does exactly that, and is the intended entrypoint.
+#
+# Startup order is expressed as data, not as sleeps: postgres/redis must report
+# healthy, `migrate` must exit 0, and only then do web, scheduler and the probes
+# start. Compose enforces the whole chain.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# DATABASE_URL and REDIS_URL point at the compose service names on purpose: the
+# values in .env point at localhost, which is correct for the host dev workflow
+# and wrong inside a container. Real process env always wins over the root .env,
+# because packages/shared/src/env.ts never overwrites a variable already set.
+x-server-env: &server-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://${POSTGRES_USER:-sentinel}:${POSTGRES_PASSWORD:-sentinel}@postgres:5432/${POSTGRES_DB:-sentinel}
+  REDIS_URL: redis://redis:6379
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is missing — run ./start.sh, which creates .env for you}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is missing — run ./start.sh, which creates .env for you}
+  # Follow the port the dashboard is actually published on. Every consumer
+  # (mail links, RSS, alert bodies, auth callbacks) reads these through
+  # getServerEnv() at request time, so moving a host port needs no image rebuild.
+  BETTER_AUTH_URL: ${APP_URL:-http://localhost:${WEB_PORT:-3000}}
+  NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:${WEB_PORT:-3000}}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-Sentinel <alerts@example.com>}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+x-scheduler-build: &scheduler-build
+  context: .
+  dockerfile: Dockerfile
+  target: scheduler
+
+# One container per region, exactly as production deploys them: the region is
+# baked into the process environment and each worker consumes only its own
+# `checks-<region>` queue. stop_grace_period gives in-flight checks time to
+# drain before the container is killed.
+#
+# cap_add NET_RAW is what lets the unprivileged `node` user use the CAP_NET_RAW
+# file capability set on /bin/ping in the image. Without it ICMP checks fail
+# with EPERM.
+x-probe: &probe
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: probe
+  image: sentinel-probe:local
+  restart: unless-stopped
+  init: true
+  logging: *logging
+  stop_grace_period: 30s
+  cap_add:
+    - NET_RAW
+  deploy:
+    resources:
+      limits:
+        memory: 512m
+  depends_on:
+    redis:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  # migrate — one-shot. Applies drizzle migrations and creates the monthly
+  # `checks` partitions. Every long-running service waits for this to exit 0.
+  migrate:
+    build: *scheduler-build
+    image: sentinel-scheduler:local
+    container_name: sentinel-migrate
+    command: ["node", "dist/migrate.js"]
+    environment: *server-env
+    restart: "no"
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # seed — one-shot, behind a profile so a normal `up` never runs it. The script
+  # invokes it only when the database has no organisations yet, or on demand via
+  # `./start.sh seed`. The seed truncates and rebuilds the demo tenant, so it is
+  # safe to repeat but writes ~700k rows each time.
+  seed:
+    build: *scheduler-build
+    image: sentinel-scheduler:local
+    container_name: sentinel-seed
+    profiles: ["seed"]
+    command: ["node", "dist/seed.js"]
+    environment: *server-env
+    restart: "no"
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # scheduler — dispatcher, consensus evaluator, incident lifecycle, rollups and
+  # alert delivery. Safe to scale: dispatch claims monitors with FOR UPDATE SKIP
+  # LOCKED and the housekeeping tasks are behind a Redis leader lock.
+  scheduler:
+    build: *scheduler-build
+    image: sentinel-scheduler:local
+    container_name: sentinel-scheduler
+    environment:
+      <<: *server-env
+      SCHEDULER_HEALTH_PORT: "4000"
+    ports:
+      - "${SCHEDULER_PORT:-4000}:4000"
+    restart: unless-stopped
+    init: true
+    logging: *logging
+    stop_grace_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  # web — Next.js 15 dashboard, REST API and public status pages.
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        # Deliberately pinned rather than derived from WEB_PORT: changing a build
+        # arg invalidates the `next build` layer. Nothing in the client bundle
+        # reads this — every consumer is server-side — so WEB_PORT can move
+        # freely without paying for a rebuild.
+        NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3000}
+    image: sentinel-web:local
+    container_name: sentinel-web
+    environment: *server-env
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    restart: unless-stopped
+    init: true
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # probes — the devEnabled region set (bom, fra, iad). Three independent
+  # verdicts is the minimum that exercises quorum, partial outage and region
+  # quarantine for real. Add more by copying a block and changing REGION_CODE;
+  # valid codes are bom sin fra lhr iad sjc gru syd.
+  probe-bom:
+    <<: *probe
+    container_name: sentinel-probe-bom
+    environment:
+      <<: *server-env
+      REGION_CODE: bom
+      PROBE_CONCURRENCY: ${PROBE_CONCURRENCY:-10}
+      PROBE_HEALTH_PORT: "4101"
+    ports:
+      - "${PROBE_BOM_PORT:-4101}:4101"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4101/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  probe-fra:
+    <<: *probe
+    container_name: sentinel-probe-fra
+    environment:
+      <<: *server-env
+      REGION_CODE: fra
+      PROBE_CONCURRENCY: ${PROBE_CONCURRENCY:-10}
+      PROBE_HEALTH_PORT: "4102"
+    ports:
+      - "${PROBE_FRA_PORT:-4102}:4102"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4102/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  probe-iad:
+    <<: *probe
+    container_name: sentinel-probe-iad
+    environment:
+      <<: *server-env
+      REGION_CODE: iad
+      PROBE_CONCURRENCY: ${PROBE_CONCURRENCY:-10}
+      PROBE_HEALTH_PORT: "4103"
+    ports:
+      - "${PROBE_IAD_PORT:-4103}:4103"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4103/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s

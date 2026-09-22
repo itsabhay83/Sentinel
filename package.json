@@ -1,20 +1,52 @@
 {
-  "name": "db",
-  "module": "index.ts",
-  "type": "module",
-  "exports": {
-    "./client": "./src/index.ts"
-  },
+  "name": "sentinel",
   "private": true,
+  "version": "1.0.0",
+  "description": "Sentinel — multi-region uptime & performance monitoring with quorum consensus",
+  "type": "module",
+  "packageManager": "pnpm@10.26.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "infra:up": "docker compose up -d --wait",
+    "infra:down": "docker compose down",
+    "infra:reset": "docker compose down -v && docker compose up -d --wait",
+    "db:generate": "pnpm --filter @sentinel/db generate",
+    "db:migrate": "pnpm --filter @sentinel/db migrate",
+    "db:seed": "pnpm --filter @sentinel/db seed",
+    "db:studio": "pnpm --filter @sentinel/db studio",
+    "setup": "pnpm infra:up && pnpm db:migrate && pnpm db:seed",
+    "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @sentinel/web dev",
+    "dev:scheduler": "pnpm --filter @sentinel/scheduler dev",
+    "dev:probes": "node scripts/dev-probes.mjs",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck && pnpm typecheck:e2e",
+    "typecheck:e2e": "tsc --noEmit --project e2e/tsconfig.json",
+    "test": "turbo run test",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "devDependencies": {
-    "@types/bun": "latest",
-    "prettier": "^3.5.3"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.5.0",
-    "prisma": "^6.5.0"
+    "@eslint/js": "^9.39.5",
+    "@next/eslint-plugin-next": "^15.5.25",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.10.5",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.25",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^2.1.8"
   }
 }

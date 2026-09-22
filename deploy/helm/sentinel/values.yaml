@@ -1,0 +1,132 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  registry: ghcr.io
+  repository: example-org/sentinel
+  # Empty means "use .Chart.AppVersion". Set explicitly to pin a release.
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Non-secret environment. Rendered verbatim into the ConfigMap, so every value
+# must be a string — packages/shared/src/env.ts coerces, but Kubernetes will
+# reject a bare integer here.
+config:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  BETTER_AUTH_URL: "https://sentinel.example.com"
+  NEXT_PUBLIC_APP_URL: "https://sentinel.example.com"
+  ALERT_EMAIL_FROM: "Sentinel <alerts@example.com>"
+  SCHEDULER_HEALTH_PORT: "4000"
+  PROBE_HEALTH_PORT: "4100"
+  PROBE_CONCURRENCY: "25"
+  DB_POOL_MAX: "0"
+  DB_CONNECT_TIMEOUT_SECONDS: "10"
+  DB_STATEMENT_TIMEOUT_MS: "15000"
+  DB_LOCK_TIMEOUT_MS: "5000"
+  DB_IDLE_TX_TIMEOUT_MS: "30000"
+  DB_MAX_RETRIES: "3"
+  RATE_LIMIT_ENABLED: "true"
+  SESSION_ABSOLUTE_TTL_DAYS: "30"
+  SESSION_IDLE_TIMEOUT_MINUTES: "10080"
+  REQUIRE_EMAIL_VERIFICATION: "true"
+  PASSWORD_RESET_TTL_MINUTES: "60"
+  EMAIL_VERIFICATION_TTL_MINUTES: "1440"
+  MFA_ISSUER: "Sentinel"
+  ALERT_MAX_DELIVERY_ATTEMPTS: "5"
+  CHECK_JOB_ATTEMPTS: "3"
+  QUEUE_MAX_DEPTH: "20000"
+  METRICS_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+
+# Secrets are NEVER rendered by this chart. Create the Secret out of band and
+# name it here. See deploy/k8s/secret.example.yaml for the required keys.
+secret:
+  existingSecret: sentinel-secrets
+
+migrate:
+  enabled: true
+  backoffLimit: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+scheduler:
+  # Safe above 1: dispatch uses FOR UPDATE SKIP LOCKED and housekeeping is
+  # behind a Redis leader lock, so only one replica does housekeeping.
+  replicas: 2
+  terminationGracePeriodSeconds: 40
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      memory: 768Mi
+
+web:
+  replicas: 3
+  terminationGracePeriodSeconds: 30
+  service:
+    type: ClusterIP
+    port: 80
+  pdb:
+    enabled: true
+    minAvailable: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 70
+  ingress:
+    enabled: false
+    className: nginx
+    host: sentinel.example.com
+    annotations: {}
+    tls:
+      enabled: true
+      secretName: sentinel-web-tls
+  resources:
+    requests:
+      cpu: 300m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+probe:
+  # Defaults inherited by every region entry below.
+  replicas: 2
+  terminationGracePeriodSeconds: 45
+  # Node label the region's probes are pinned to. The value is the region code.
+  nodeSelectorKey: sentinel.io/region
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  # The eight probe regions. `enabled: false` removes a region's workload
+  # entirely; do that before decommissioning its nodes, not after.
+  # Per-region overrides: replicas, concurrency, resources, nodeSelector, tolerations.
+  regions:
+    - code: bom
+      enabled: true
+    - code: sin
+      enabled: true
+    - code: fra
+      enabled: true
+    - code: lhr
+      enabled: true
+    - code: iad
+      enabled: true
+      replicas: 3
+    - code: sjc
+      enabled: true
+    - code: gru
+      enabled: true
+    - code: syd
+      enabled: true

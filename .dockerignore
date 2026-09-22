@@ -1,0 +1,48 @@
+# Host artefacts that must never enter the image. node_modules in particular
+# holds darwin/arm64 native binaries (sharp, @tailwindcss/oxide, esbuild) that
+# would shadow the linux ones pnpm installs inside the container.
+node_modules
+**/node_modules
+.pnpm-store
+
+# Build output — rebuilt inside the image.
+.next
+**/.next
+dist
+**/dist
+out
+*.tsbuildinfo
+**/*.tsbuildinfo
+.turbo
+**/.turbo
+
+# Secrets: compose injects the real environment at runtime. Baking .env into a
+# layer would ship credentials inside the image and override container env.
+.env
+.env.*
+
+# VCS, tooling, local state
+.git
+.gitignore
+.github
+.codegraph
+.omo
+.run
+.playwright-mcp
+coverage
+*.lcov
+logs
+*.log
+.DS_Store
+.idea
+.vscode
+
+# Docs and docker files themselves
+startup.md
+README.md
+DECISIONS.md
+docs
+Dockerfile
+.dockerignore
+docker-compose*.yml
+start.sh

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: sentinel
+description: Multi-region uptime and synthetic monitoring with quorum consensus.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - monitoring
+  - uptime
+  - synthetic
+maintainers:
+  - name: Sentinel maintainers

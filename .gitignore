@@ -1,34 +1,49 @@
-# dependencies (bun install)
+# dependencies
 node_modules
+.pnpm-store
 
-# output
-out
+# build output
 dist
+out
+.next
+.turbo
 *.tgz
+*.tsbuildinfo
 
-# code coverage
+# test / coverage
 coverage
 *.lcov
 
 # logs
 logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+*.log
 
-# dotenv environment variable files
+# env
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
 
 # caches
 .eslintcache
 .cache
-*.tsbuildinfo
 
-# IntelliJ based IDEs
+# editors / OS
 .idea
-
-# Finder (MacOS) folder config
 .DS_Store
+
+# local tooling
+.codegraph
+.omo
+
+# Local dev process logs and QA artefacts
+.run/
+.playwright-mcp/
+
+# Playwright E2E output. `e2e/.auth/` holds a live session cookie for the demo
+# user — committing it would publish a working credential.
+/test-results/
+/playwright-report/
+/blob-report/
+/e2e/.auth/

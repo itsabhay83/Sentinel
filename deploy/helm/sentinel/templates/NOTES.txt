@@ -1,0 +1,21 @@
+Sentinel {{ .Chart.AppVersion }} installed as release {{ .Release.Name }}.
+
+Enabled probe regions:
+{{- range .Values.probe.regions }}
+{{- if .enabled }}
+  - {{ .code }}
+{{- end }}
+{{- end }}
+
+Check the rollout:
+
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "sentinel.fullname" . }}-scheduler
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "sentinel.fullname" . }}-web
+
+The migration Job runs as a pre-install/pre-upgrade hook. If the release is
+stuck, read it first:
+
+  kubectl -n {{ .Release.Namespace }} logs job/{{ include "sentinel.fullname" . }}-migrate-{{ .Release.Revision }}
+
+Secrets are NOT managed by this chart. `{{ .Values.secret.existingSecret }}`
+must exist in the namespace before install.

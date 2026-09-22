@@ -1,0 +1,668 @@
+# One Deployment per probe region. A probe consumes only its own
+# `checks-<region>` queue, so regions are independent failure domains and are
+# deployed, scaled and rolled separately.
+#
+# Deployment rather than DaemonSet: probe count is a function of check volume,
+# not of node count, and the HPA/replica knob has to stay per-region.
+#
+# NET_RAW is added back after dropping ALL because the ICMP checker shells out
+# to /bin/ping, which carries cap_net_raw+ep in the image (see Dockerfile).
+# Without it every ICMP monitor fails with EPERM.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-probe
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+  ports:
+    - name: health
+      port: 4100
+      targetPort: health
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-bom
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: bom
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: bom
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: bom
+    spec:
+      nodeSelector:
+        sentinel.io/region: bom
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "bom"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-sin
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: sin
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: sin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: sin
+    spec:
+      nodeSelector:
+        sentinel.io/region: sin
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "sin"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-fra
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: fra
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: fra
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: fra
+    spec:
+      nodeSelector:
+        sentinel.io/region: fra
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "fra"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-lhr
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: lhr
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: lhr
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: lhr
+    spec:
+      nodeSelector:
+        sentinel.io/region: lhr
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "lhr"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-iad
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: iad
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: iad
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: iad
+    spec:
+      nodeSelector:
+        sentinel.io/region: iad
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "iad"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-sjc
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: sjc
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: sjc
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: sjc
+    spec:
+      nodeSelector:
+        sentinel.io/region: sjc
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "sjc"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-gru
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: gru
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: gru
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: gru
+    spec:
+      nodeSelector:
+        sentinel.io/region: gru
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "gru"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-probe-syd
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel
+    app.kubernetes.io/component: probe
+    sentinel.io/region: syd
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel
+      app.kubernetes.io/component: probe
+      sentinel.io/region: syd
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel
+        app.kubernetes.io/component: probe
+        sentinel.io/region: syd
+    spec:
+      nodeSelector:
+        sentinel.io/region: syd
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      # Long enough for in-flight checks to finish and report; a killed check
+      # shows up as a missing regional verdict and weakens the quorum.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: probe
+          image: ghcr.io/example-org/sentinel/probe:latest
+          ports:
+            - name: health
+              containerPort: 4100
+          env:
+            - name: REGION_CODE
+              value: "syd"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]

@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentinel-config
+  namespace: sentinel
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  BETTER_AUTH_URL: "https://sentinel.example.com"
+  NEXT_PUBLIC_APP_URL: "https://sentinel.example.com"
+  ALERT_EMAIL_FROM: "Sentinel <alerts@example.com>"
+
+  SCHEDULER_HEALTH_PORT: "4000"
+  PROBE_HEALTH_PORT: "4100"
+  PROBE_CONCURRENCY: "25"
+
+  DB_POOL_MAX: "0"
+  DB_CONNECT_TIMEOUT_SECONDS: "10"
+  DB_STATEMENT_TIMEOUT_MS: "15000"
+  DB_LOCK_TIMEOUT_MS: "5000"
+  DB_IDLE_TX_TIMEOUT_MS: "30000"
+  DB_MAX_RETRIES: "3"
+
+  RATE_LIMIT_ENABLED: "true"
+  SESSION_ABSOLUTE_TTL_DAYS: "30"
+  SESSION_IDLE_TIMEOUT_MINUTES: "10080"
+  REQUIRE_EMAIL_VERIFICATION: "true"
+  PASSWORD_RESET_TTL_MINUTES: "60"
+  EMAIL_VERIFICATION_TTL_MINUTES: "1440"
+  MFA_ISSUER: "Sentinel"
+
+  ALERT_MAX_DELIVERY_ATTEMPTS: "5"
+  CHECK_JOB_ATTEMPTS: "3"
+  QUEUE_MAX_DEPTH: "20000"
+
+  METRICS_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""

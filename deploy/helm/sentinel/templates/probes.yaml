@@ -1,0 +1,117 @@
+{{- $root := . -}}
+{{- $probe := .Values.probe -}}
+# One Deployment per enabled region. A probe consumes only its own
+# `checks-<region>` queue, so regions are independent failure domains and roll
+# separately.
+{{- range $region := $probe.regions }}
+{{- if $region.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sentinel.fullname" $root }}-probe-{{ $region.code }}
+  labels:
+    {{- include "sentinel.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: probe
+    sentinel.io/region: {{ $region.code }}
+spec:
+  replicas: {{ default $probe.replicas $region.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "sentinel.selectorLabels" $root | nindent 6 }}
+      app.kubernetes.io/component: probe
+      sentinel.io/region: {{ $region.code }}
+  template:
+    metadata:
+      labels:
+        {{- include "sentinel.selectorLabels" $root | nindent 8 }}
+        app.kubernetes.io/component: probe
+        sentinel.io/region: {{ $region.code }}
+      annotations:
+        checksum/config: {{ include (print $root.Template.BasePath "/configmap.yaml") $root | sha256sum }}
+    spec:
+      {{- with $root.Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      nodeSelector:
+        {{- if $region.nodeSelector }}
+        {{- toYaml $region.nodeSelector | nindent 8 }}
+        {{- else }}
+        {{ $probe.nodeSelectorKey }}: {{ $region.code }}
+        {{- end }}
+      {{- with $region.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "sentinel.podSecurityContext" $root | nindent 8 }}
+      # Long enough for in-flight checks to finish and report; a killed check is
+      # a missing regional verdict, which weakens the quorum for that cycle.
+      terminationGracePeriodSeconds: {{ $probe.terminationGracePeriodSeconds }}
+      containers:
+        - name: probe
+          image: {{ include "sentinel.image" (dict "root" $root "component" "probe") }}
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          ports:
+            - name: health
+              containerPort: {{ $root.Values.config.PROBE_HEALTH_PORT | int }}
+          env:
+            - name: REGION_CODE
+              value: {{ $region.code | quote }}
+            {{- with $region.concurrency }}
+            - name: PROBE_CONCURRENCY
+              value: {{ . | quote }}
+            {{- end }}
+          envFrom:
+            {{- include "sentinel.envFrom" $root | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml (default $probe.resources $region.resources) | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              # /bin/ping carries cap_net_raw+ep (see Dockerfile). Without
+              # NET_RAW on the container every ICMP monitor fails with EPERM.
+              add: ["NET_RAW"]
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sentinel.fullname" . }}-probe
+  labels:
+    {{- include "sentinel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: probe
+spec:
+  clusterIP: None
+  selector:
+    {{- include "sentinel.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: probe
+  ports:
+    - name: health
+      port: {{ .Values.config.PROBE_HEALTH_PORT | int }}
+      targetPort: health

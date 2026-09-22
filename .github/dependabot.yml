@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    groups:
+      # One PR per ecosystem cluster: a split React/Next bump is unmergeable.
+      next:
+        patterns: ["next", "eslint-config-next", "@next/*", "react", "react-dom", "@types/react*"]
+      typescript-tooling:
+        patterns:
+          ["typescript", "typescript-eslint", "eslint", "@eslint/*", "prettier", "tsup", "tsx"]
+      drizzle:
+        patterns: ["drizzle-orm", "drizzle-kit", "postgres"]
+      dev-minor-patch:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5

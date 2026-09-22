@@ -1,0 +1,36 @@
+node_modules
+.next
+.turbo
+dist
+out
+coverage
+.run
+.playwright-mcp
+pnpm-lock.yaml
+*.tsbuildinfo
+
+# Drizzle emits these; regenerating is the only supported way to change them.
+packages/db/drizzle
+packages/db/migrations
+
+# Terraform has its own canonical formatter (`terraform fmt`).
+deploy/terraform
+
+# Go-template YAML — not parseable as YAML until Helm renders it.
+deploy/helm/sentinel/templates
+
+# NOT-YET-FORMATTED APPLICATION SOURCE.
+#
+# These trees were hand-written and have never been through Prettier: a full
+# pass rewrites 68 of 130 files (~1,880 changed lines) purely for line wrapping.
+# That is a mechanical change that belongs in its own dedicated commit, run
+# while nobody is mid-feature — it is deliberately NOT bundled into the commit
+# that introduces the formatter.
+#
+# To adopt: delete the five entries below, run `pnpm format`, commit alone.
+apps/web/src
+apps/scheduler/src
+apps/probe/src
+packages/shared/src
+packages/checker/src
+packages/db/src

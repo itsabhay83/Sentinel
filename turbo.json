@@ -1,0 +1,57 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "ENCRYPTION_KEY",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "RESEND_API_KEY",
+    "ALERT_EMAIL_FROM",
+    "REGION_CODE",
+    "PROBE_CONCURRENCY",
+    "LOG_LEVEL",
+    "SCHEDULER_HEALTH_PORT",
+    "PROBE_HEALTH_PORT",
+    "API_KEY_HMAC_SECRET",
+    "DB_POOL_MAX",
+    "DB_CONNECT_TIMEOUT_SECONDS",
+    "DB_STATEMENT_TIMEOUT_MS",
+    "DB_LOCK_TIMEOUT_MS",
+    "DB_IDLE_TX_TIMEOUT_MS",
+    "DB_MAX_RETRIES",
+    "RATE_LIMIT_ENABLED",
+    "SESSION_ABSOLUTE_TTL_DAYS",
+    "SESSION_IDLE_TIMEOUT_MINUTES",
+    "REQUIRE_EMAIL_VERIFICATION",
+    "PASSWORD_RESET_TTL_MINUTES",
+    "EMAIL_VERIFICATION_TTL_MINUTES",
+    "MFA_ISSUER",
+    "ALERT_MAX_DELIVERY_ATTEMPTS",
+    "CHECK_JOB_ATTEMPTS",
+    "QUEUE_MAX_DEPTH",
+    "METRICS_ENABLED",
+    "SENTRY_DSN",
+    "OTEL_EXPORTER_OTLP_ENDPOINT"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test": {
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
