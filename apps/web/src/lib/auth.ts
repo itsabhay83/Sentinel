@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@sentinel/db";
 import { members, organizations, users } from "@sentinel/db/schema";
@@ -39,32 +39,42 @@ export type SessionOrg = {
 export type Session = {
   /** Clerk's session ID. Opaque here; useful for correlating with Clerk's logs. */
   id: string;
+  /**
+   * Clerk's user ID. Distinct from `user.id`, which is the local primary key
+   * every foreign key points at -- passing the wrong one to Clerk's API would
+   * address a different account, or none.
+   */
+  clerkUserId: string;
   user: SessionUser;
   org: SessionOrg | null;
 };
 
+const USER_COLUMNS = {
+  id: users.id,
+  name: users.name,
+  email: users.email,
+  image: users.image,
+  emailVerified: users.emailVerified,
+  mfaEnabled: users.mfaEnabled,
+} as const;
+
 /**
- * The local row is keyed by Clerk's user ID rather than matched on email, so
- * the common path is a single indexed primary-key lookup with no call out to
- * Clerk. `currentUser()` is only reached on the very first request after
- * sign-up, when there is nothing to read yet.
+ * Maps a Clerk user onto a local `users` row, claiming a pre-Clerk account when
+ * one already exists for the same address.
+ *
+ * The claim step is not optional. This app had real accounts before Clerk, and
+ * those rows own organizations, audit entries and invitations. Inserting a
+ * second row for the same person would have collided with `users_email_unique`
+ * anyway -- which is exactly how this surfaced -- and re-keying the old row to
+ * Clerk's ID is impossible, because none of the eight foreign keys pointing at
+ * `users.id` declares ON UPDATE CASCADE. So the Clerk ID is recorded alongside
+ * the existing row and `users.id` never moves.
  */
 async function resolveUser(clerkUserId: string): Promise<SessionUser | null> {
-  const existing = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      image: users.image,
-      emailVerified: users.emailVerified,
-      mfaEnabled: users.mfaEnabled,
-    })
-    .from(users)
-    .where(eq(users.id, clerkUserId))
-    .limit(1);
+  const linked = await db.select(USER_COLUMNS).from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1);
+  if (linked[0]) return linked[0];
 
-  if (existing[0]) return existing[0];
-
+  // Only reached once per account: the first sign-in after the cutover.
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
 
@@ -72,34 +82,36 @@ async function resolveUser(clerkUserId: string): Promise<SessionUser | null> {
   if (!email) return null;
 
   const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || clerkUser.username || email;
+  const image = clerkUser.imageUrl ?? null;
 
-  const inserted = await db
+  // Claim by email. Safe because Clerk will not issue a session for an email it
+  // has not verified, so possession of the address is already proven.
+  const claimed = await db
+    .update(users)
+    .set({ clerkUserId, name, image, emailVerified: true, updatedAt: new Date() })
+    .where(and(eq(users.email, email), isNull(users.clerkUserId)))
+    .returning(USER_COLUMNS);
+  if (claimed[0]) return claimed[0];
+
+  const created = await db
     .insert(users)
     .values({
-      id: clerkUserId,
+      id: generateId("usr"),
+      clerkUserId,
       name,
       email,
-      image: clerkUser.imageUrl ?? null,
-      // Clerk will not issue a session for an unverified primary email, and it
-      // owns MFA entirely -- these columns are now mirrors, not sources.
+      image,
+      // Clerk owns verification and MFA now; these columns are mirrors.
       emailVerified: true,
       mfaEnabled: false,
     })
-    // A second concurrent request during first sign-in must not 23505.
-    .onConflictDoUpdate({
-      target: users.id,
-      set: { name, email, image: clerkUser.imageUrl ?? null, updatedAt: new Date() },
-    })
-    .returning({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      image: users.image,
-      emailVerified: users.emailVerified,
-      mfaEnabled: users.mfaEnabled,
-    });
+    // Two concurrent first requests must not race into a 23505.
+    .onConflictDoNothing()
+    .returning(USER_COLUMNS);
+  if (created[0]) return created[0];
 
-  return inserted[0] ?? null;
+  const raced = await db.select(USER_COLUMNS).from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1);
+  return raced[0] ?? null;
 }
 
 /**
@@ -205,7 +217,7 @@ export async function getSession(): Promise<Session | null> {
   const user = await resolveUser(userId);
   if (!user) return null;
 
-  return { id: sessionId, user, org: await ensureMembership(user) };
+  return { id: sessionId, clerkUserId: userId, user, org: await ensureMembership(user) };
 }
 
 export async function requireSession(): Promise<Session> {

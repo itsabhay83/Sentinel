@@ -12,6 +12,16 @@ import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "dri
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
+  /**
+   * The Clerk user this row belongs to, once they have signed in at least once.
+   *
+   * Clerk's ID cannot simply *be* `users.id`: eight tables reference that
+   * primary key and not one of them declares ON UPDATE CASCADE, so re-keying an
+   * existing account would strand its organization, audit log and invitations.
+   * Nullable because rows predating Clerk exist unclaimed until their owner
+   * signs in, and unique because two Clerk accounts must never share one.
+   */
+  clerkUserId: text("clerk_user_id"),
   name: text("name").notNull(),
   email: text("email").notNull(),
   emailVerified: boolean("email_verified").notNull().default(false),
@@ -19,7 +29,10 @@ export const users = pgTable("users", {
   mfaEnabled: boolean("mfa_enabled").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [uniqueIndex("users_email_unique").on(table.email)]);
+}, (table) => [
+  uniqueIndex("users_email_unique").on(table.email),
+  uniqueIndex("users_clerk_user_id_unique").on(table.clerkUserId),
+]);
 
 export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),

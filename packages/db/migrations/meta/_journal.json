@@ -36,6 +36,13 @@
       "when": 1789662895463,
       "tag": "0004_backfill_stale_alert_deliveries",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790113426474,
+      "tag": "0005_gray_vision",
+      "breakpoints": true
     }
   ]
 }

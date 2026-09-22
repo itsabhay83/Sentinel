@@ -169,7 +169,7 @@ export async function deleteAccountAction(
   // ensureMembership(), which is the opposite of deleting an account. Clerk
   // revokes their sessions as part of this.
   const clerk = await clerkClient();
-  await clerk.users.deleteUser(session.user.id);
+  await clerk.users.deleteUser(session.clerkUserId);
 
   revalidateTag(STATUS_PAGE_CACHE_TAG);
   redirect("/");
