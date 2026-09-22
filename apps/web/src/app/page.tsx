@@ -1,8 +1,9 @@
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, Globe2, Radar, ShieldCheck, Waves } from "lucide-react";
 import { REGIONS } from "@sentinel/shared";
-import { LinkButton } from "@/components/ui";
+import { Button, LinkButton } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 
 export default async function LandingPage() {
@@ -22,13 +23,29 @@ export default async function LandingPage() {
           <Radar className="size-5 text-accent" />
           Sentinel
         </span>
+        {/*
+          Clerk Core 3 removed <SignedIn>/<SignedOut> in favour of <Show when>.
+          Buttons are `mode="modal"` so the marketing page never navigates away
+          to sign in, and both wrap the existing Button so auth matches the rest
+          of the design system rather than dropping Clerk's default styling in.
+        */}
         <nav className="flex items-center gap-2">
-          <LinkButton href="/login" variant="ghost" size="sm">
-            Log in
-          </LinkButton>
-          <LinkButton href="/signup" size="sm">
-            Start monitoring
-          </LinkButton>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button variant="ghost" size="sm">
+                Log in
+              </Button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <Button size="sm">Start monitoring</Button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <LinkButton href="/dashboard" variant="ghost" size="sm">
+              Dashboard
+            </LinkButton>
+            <UserButton />
+          </Show>
         </nav>
       </header>
 

@@ -1,3 +1,4 @@
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { CSRF_COOKIE, CSRF_COOKIE_OPTIONS, randomCsrfToken } from "@/lib/csrf-cookie";
@@ -6,10 +7,32 @@ import { CSRF_COOKIE, CSRF_COOKIE_OPTIONS, randomCsrfToken } from "@/lib/csrf-co
  * Security headers for every response, and the one place the CSRF cookie is
  * minted — a Server Component render cannot set a cookie, so seeding it here is
  * what makes `<CsrfInput />` able to render a value that will match on submit.
+ *
+ * Wrapped in `clerkMiddleware` so `auth()` is available to Server Components,
+ * Route Handlers and Server Actions. `clerk init` declined to do this
+ * automatically ("unsupported shape"), because the response here is built and
+ * mutated rather than returned straight from `NextResponse.next()`. Composing
+ * by hand is the whole point: dropping this middleware to let Clerk own the
+ * file would silently remove the CSRF seed and every security header.
  */
 
 const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()";
 const HSTS = "max-age=63072000; includeSubDomains; preload";
+
+/**
+ * Clerk serves its SDK and opens its sign-in widget from the Frontend API
+ * host, and fronts bot protection with Cloudflare Turnstile. Without these the
+ * existing `script-src 'self'` blocks Clerk outright and every auth screen
+ * renders empty with a CSP violation in the console.
+ *
+ * `*.clerk.accounts.dev` covers development instances. A production instance
+ * served from a custom domain (clerk.<your-domain>) has to be added here too,
+ * or the same silent breakage ships to production.
+ */
+const CLERK_SCRIPT_SRC = "https://*.clerk.accounts.dev https://challenges.cloudflare.com";
+const CLERK_CONNECT_SRC = "https://*.clerk.accounts.dev";
+const CLERK_FRAME_SRC = "https://*.clerk.accounts.dev https://challenges.cloudflare.com";
+const CLERK_IMG_SRC = "https://img.clerk.com";
 
 /**
  * Next inlines its bootstrap and route-announcer scripts, so `'unsafe-inline'`
@@ -22,11 +45,12 @@ function contentSecurityPolicy(embeddable: boolean): string {
   const development = process.env.NODE_ENV !== "production";
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'unsafe-inline' ${CLERK_SCRIPT_SRC}${development ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
+    `img-src 'self' data: blob: https: ${CLERK_IMG_SRC}`,
     "font-src 'self' data:",
-    `connect-src 'self' https:${development ? " ws: wss:" : ""}`,
+    `connect-src 'self' https: ${CLERK_CONNECT_SRC}${development ? " ws: wss:" : ""}`,
+    `frame-src 'self' ${CLERK_FRAME_SRC}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
@@ -35,7 +59,7 @@ function contentSecurityPolicy(embeddable: boolean): string {
   ].join("; ");
 }
 
-export function middleware(request: NextRequest): NextResponse {
+function withSecurityHeaders(request: NextRequest): NextResponse {
   // Public status pages are meant to be embedded in customers' own dashboards.
   const embeddable = request.nextUrl.pathname.startsWith("/status/");
 
@@ -58,6 +82,12 @@ export function middleware(request: NextRequest): NextResponse {
   return response;
 }
 
+export default clerkMiddleware((_auth, request) => withSecurityHeaders(request));
+
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/(api|trpc)(.*)",
+    "/__clerk/:path*",
+  ],
 };
