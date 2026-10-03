@@ -6,7 +6,9 @@ export interface ClassifiedError {
 }
 
 interface NodeishError {
-  readonly code?: string;
+  // Not always a string: a `child_process` rejection carries the exit status
+  // here as a number, which is why this is read through `codeOf` below.
+  readonly code?: string | number;
   readonly errno?: number;
   readonly syscall?: string;
   readonly message?: string;
@@ -23,7 +25,7 @@ interface NodeishError {
  */
 export function classifyNodeError(error: unknown, aborted = false): ClassifiedError {
   const err = normalize(error);
-  const code = err.code ?? "";
+  const code = codeOf(err);
   const detail = err.message ?? String(error);
 
   if (aborted || code === "ABORT_ERR" || err.name === "AbortError") {
@@ -100,13 +102,25 @@ export function classifyNodeError(error: unknown, aborted = false): ClassifiedEr
   return { code: "UNKNOWN", detail };
 }
 
+/**
+ * Node only promises a string `code` on *errors it raises itself*. A rejected
+ * `execFile` puts the child's numeric exit status in the same field, and a
+ * `DOMException` exposes a legacy numeric `code`. Treating those as strings
+ * threw a TypeError out of the callers' catch blocks, turning a recordable
+ * check failure into a dead job, so anything non-string is discarded here and
+ * classified from `detail` instead.
+ */
+function codeOf(err: NodeishError): string {
+  return typeof err.code === "string" ? err.code : "";
+}
+
 function normalize(error: unknown): NodeishError {
   if (error && typeof error === "object") {
     const err = error as NodeishError;
     // undici and Node's fetch nest the real cause one level down.
-    if (!err.code && err.cause && typeof err.cause === "object") {
+    if (!codeOf(err) && err.cause && typeof err.cause === "object") {
       const cause = err.cause as NodeishError;
-      if (cause.code) return { ...cause, message: cause.message ?? err.message };
+      if (codeOf(cause)) return { ...cause, message: cause.message ?? err.message };
     }
     return err;
   }

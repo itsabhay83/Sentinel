@@ -89,15 +89,19 @@ interface PingArgs {
   readonly argv: readonly string[];
 }
 
-function buildPingArgs(address: string, family: 4 | 6, timeoutMs: number): PingArgs {
-  const command = family === 6 ? (process.platform === "linux" ? "ping6" : "ping") : "ping";
+export function buildPingArgs(address: string, family: 4 | 6, timeoutMs: number): PingArgs {
   if (process.platform === "darwin") {
+    // macOS keeps IPv6 in a separate binary. `ping` has no -6 flag at all — it
+    // exits 64 with a usage error — and ping6 takes no deadline arguments (-t
+    // and -W are argument-less booleans there), so the execFile timeout is the
+    // only bound available for v6.
+    if (family === 6) return { command: "ping6", argv: ["-c", "1", address] };
     // macOS: -W is in milliseconds, -t is the total deadline in seconds.
-    const argv = ["-c", "1", "-W", String(timeoutMs), "-t", String(Math.ceil(timeoutMs / 1000))];
-    if (family === 6) argv.unshift("-6");
-    return { command, argv: [...argv, address] };
+    const seconds = String(Math.max(1, Math.ceil(timeoutMs / 1000)));
+    return { command: "ping", argv: ["-c", "1", "-W", String(timeoutMs), "-t", seconds, address] };
   }
   // Linux / BSD: -W is in seconds, -w is the total deadline.
+  const command = family === 6 && process.platform === "linux" ? "ping6" : "ping";
   const seconds = String(Math.max(1, Math.ceil(timeoutMs / 1000)));
   return { command, argv: ["-c", "1", "-W", seconds, "-w", seconds, address] };
 }
