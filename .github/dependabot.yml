@@ -15,6 +15,13 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    # `main` is production, so bumps land on `develop` and reach `main` through
+    # the normal merge. Note the trade: pointing an ecosystem at a non-default
+    # branch disables Dependabot *security* updates for it, so action advisories
+    # now arrive only via the monthly sweep below. npm is unaffected — it has no
+    # entry here, and its security updates are a repo setting that always
+    # targets the default branch.
+    target-branch: develop
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
