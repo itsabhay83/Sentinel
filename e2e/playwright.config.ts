@@ -11,6 +11,10 @@ const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3010";
 
 export default defineConfig({
   testDir: "./specs",
+  // Mints Clerk's testing token and provisions the demo owner in Clerk before
+  // any project runs. Without the token the sign-in helper is challenged by bot
+  // protection; without the user there is nobody to sign in as.
+  globalSetup: "./support/global-setup.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   // CI runs one worker so the rate-limit spec's request budget is never shared
