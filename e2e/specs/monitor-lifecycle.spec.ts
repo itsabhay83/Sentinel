@@ -51,7 +51,7 @@ test("creates a monitor through the UI and removes it again", async ({ page }) =
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
 
   // The session has to survive the action round-trip. If it did not, the app
-  // layout would have bounced this navigation to /login instead.
+  // layout would have bounced this navigation to /sign-in instead.
   await expect(signOutButton(page)).toBeVisible();
 
   await page.getByRole("button", { name: "Delete" }).click();

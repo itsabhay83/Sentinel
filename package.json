@@ -2,7 +2,7 @@
   "name": "sentinel",
   "private": true,
   "version": "1.0.0",
-  "description": "Sentinel \u2014 multi-region uptime & performance monitoring with quorum consensus",
+  "description": "Sentinel — multi-region uptime & performance monitoring with quorum consensus",
   "type": "module",
   "packageManager": "pnpm@10.26.2",
   "engines": {
@@ -33,6 +33,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.42",
     "@eslint/js": "^9.39.5",
     "@next/eslint-plugin-next": "^15.5.25",
     "@playwright/test": "^1.63.0",

@@ -9,9 +9,14 @@ function required(headers: Record<string, string>, name: string): string {
 }
 
 test.describe("middleware security headers", () => {
-  test("/login carries the full header set and mints a CSRF cookie", async ({ page }) => {
-    const response = await page.goto("/login");
-    if (!response) throw new Error("navigating to /login produced no response");
+  test("/sign-in carries the full header set and mints a CSRF cookie", async ({ page }) => {
+    const response = await page.goto("/sign-in");
+    if (!response) throw new Error("navigating to /sign-in produced no response");
+
+    // Asserted because middleware decorates 404s too: when this spec pointed at
+    // the pre-Clerk /login after that route was deleted, every header assertion
+    // below still passed against the not-found page.
+    expect(response.ok(), "/sign-in did not return a successful response").toBe(true);
 
     const headers = response.headers();
 
@@ -30,8 +35,8 @@ test.describe("middleware security headers", () => {
     expect(required(headers, "strict-transport-security")).toMatch(/^max-age=\d+/);
   });
 
-  test("/login sets the sentinel_csrf double-submit cookie", async ({ page }) => {
-    await page.goto("/login");
+  test("/sign-in sets the sentinel_csrf double-submit cookie", async ({ page }) => {
+    await page.goto("/sign-in");
 
     const csrf = (await page.context().cookies()).find((cookie) => cookie.name === CSRF_COOKIE);
 
