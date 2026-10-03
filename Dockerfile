@@ -65,13 +65,21 @@ RUN pnpm --filter @sentinel/scheduler --filter @sentinel/probe run build
 # in this stage; the final `web` stage starts from `base` and therefore cannot
 # inherit any of them as a runtime default.
 #
-# NEXT_PUBLIC_APP_URL is the exception: Next inlines it into the client bundle,
-# so it is a build arg that must match the URL the browser will actually use.
+# NEXT_PUBLIC_APP_URL and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY are the exceptions:
+# Next inlines them into the client bundle, so they are build args that must
+# match what the browser will actually use. The Clerk one is deliberately
+# defaultless -- a placeholder would bake a broken Clerk frontend into the image
+# and no runtime variable could undo it, so a deploy that forgets to pass
+# `--build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...` should be obvious.
+# CLERK_SECRET_KEY is absent on purpose: it is read server-side at runtime, so
+# it belongs in the deployment environment and must never be baked in.
 FROM source AS web-build
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY \
     BETTER_AUTH_URL=$NEXT_PUBLIC_APP_URL \
     DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
     REDIS_URL=redis://127.0.0.1:6379 \

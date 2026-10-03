@@ -55,7 +55,11 @@ jobs:
           cache-to: type=gha,mode=max,scope=publish-${{ matrix.target }}
           provenance: true
           sbom: true
-          # NEXT_PUBLIC_APP_URL is inlined into the client bundle at build time,
-          # so a published web image is pinned to one public origin.
+          # Both of these are inlined into the client bundle at build time, so a
+          # published web image is pinned to one public origin and one Clerk
+          # instance. The publishable key is not a secret -- it ships in the
+          # bundle either way -- it is only sourced from secrets here because
+          # that is where it is currently stored.
           build-args: |
             NEXT_PUBLIC_APP_URL=${{ vars.PUBLIC_APP_URL }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
