@@ -49,9 +49,7 @@ async function ensureDemoUserExists(): Promise<void> {
     // A parallel CI run can win the race between the lookup and the create, and
     // "that address is taken" is the outcome we wanted anyway.
     if (await findUserId(secretKey, DEMO_EMAIL)) return;
-    throw new Error(
-      `could not create the Clerk demo user (${response.status}): ${await response.text()}`,
-    );
+    throw new Error(`could not create the Clerk demo user (${response.status}): ${await response.text()}`);
   }
 }
 
@@ -60,9 +58,7 @@ async function findUserId(secretKey: string, email: string): Promise<string | nu
   const response = await fetch(url, { headers: { Authorization: `Bearer ${secretKey}` } });
 
   if (!response.ok) {
-    throw new Error(
-      `could not query Clerk for ${email} (${response.status}): ${await response.text()}`,
-    );
+    throw new Error(`could not query Clerk for ${email} (${response.status}): ${await response.text()}`);
   }
 
   // The endpoint returns a bare array, not a paginated envelope.
