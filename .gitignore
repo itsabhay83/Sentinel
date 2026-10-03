@@ -1,7 +1,7 @@
 # dependencies
 node_modules
 .pnpm-store
-
+docs
 # build output
 dist
 out
