@@ -107,13 +107,6 @@ jobs:
       BETTER_AUTH_SECRET: ci-only-not-a-real-secret-0000000000000000000
       BETTER_AUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      # Clerk runs in middleware, so every request 500s without these and the
-      # readiness probe never passes. Set at job level rather than on `next
-      # start`: NEXT_PUBLIC_* is inlined at build time, so `pnpm build` needs
-      # the publishable key too or the client bundle ships an undefined one.
-      # Point these at a Clerk *development* instance, never production.
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       RESEND_API_KEY: ""
       ALERT_EMAIL_FROM: Sentinel <alerts@example.com>
       REGION_CODE: bom
@@ -155,6 +148,10 @@ jobs:
       RESEND_API_KEY: ""
       ALERT_EMAIL_FROM: Sentinel <alerts@example.com>
       REGION_CODE: bom
+      # Inlined into the client bundle by `next build`, so this job needs it to
+      # produce the same output E2E and the image build do. No secret key: it is
+      # only read server-side at runtime.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
     steps:
       - uses: actions/checkout@v7
@@ -216,6 +213,13 @@ jobs:
       REGION_CODE: bom
       LOG_LEVEL: warn
       E2E_BASE_URL: http://localhost:3000
+      # clerkMiddleware runs on every request, so without these the server 500s
+      # and readiness never passes. Job-level rather than on `next start`:
+      # NEXT_PUBLIC_* is inlined by `pnpm build`, so the build needs the
+      # publishable key too or the bundle ships an undefined one. Point these at
+      # a Clerk *development* instance, never production.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
 
     steps:
       - uses: actions/checkout@v7
