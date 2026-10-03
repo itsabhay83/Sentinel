@@ -5,6 +5,7 @@ import { runDnsCheck } from "./dns";
 import { runFlowCheck } from "./flow";
 import { evaluateAssertions, readPath } from "./assertions";
 import { classifyNodeError } from "./errors";
+import { buildPingArgs, parseRtt } from "./ping";
 import {
   assertAllowedIp,
   isBlockedIp,
@@ -355,6 +356,80 @@ describe("classifyNodeError", () => {
 
   it("falls back to UNKNOWN", () => {
     expect(classifyNodeError(new Error("something odd")).code).toBe("UNKNOWN");
+  });
+
+  // A rejected execFile (the ping checker shells out) carries the child's exit
+  // status in `code` as a number. Reading it as a string threw a TypeError out
+  // of runPingCheck's catch and killed the job instead of recording a failure.
+  it("survives a numeric code from a child process", () => {
+    const err = Object.assign(new Error("Command failed: ping -6"), { code: 64 });
+    expect(classifyNodeError(err)).toEqual({ code: "UNKNOWN", detail: "Command failed: ping -6" });
+  });
+
+  it("does not read a numeric code as a TLS prefix", () => {
+    const err = Object.assign(new Error("exited oddly"), { code: 2, errno: 2 });
+    expect(() => classifyNodeError(err)).not.toThrow();
+  });
+
+  it("prefers a cause's string code over a numeric outer one", () => {
+    const wrapped = Object.assign(new Error("command failed"), { code: 1 });
+    (wrapped as { cause?: unknown }).cause = Object.assign(new Error("inner"), {
+      code: "ECONNREFUSED",
+    });
+    expect(classifyNodeError(wrapped).code).toBe("TCP_REFUSED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ping argv construction
+// ---------------------------------------------------------------------------
+
+describe("buildPingArgs", () => {
+  const platform = process.platform;
+  const setPlatform = (value: string) =>
+    Object.defineProperty(process, "platform", { value, configurable: true });
+
+  afterAll(() => setPlatform(platform));
+
+  it("uses ping6 for IPv6 on macOS, where ping has no -6 flag", () => {
+    setPlatform("darwin");
+    const args = buildPingArgs("2606:4700:4700::1111", 6, 30_000);
+    expect(args.command).toBe("ping6");
+    expect(args.argv).toEqual(["-c", "1", "2606:4700:4700::1111"]);
+    expect(args.argv).not.toContain("-6");
+  });
+
+  it("passes macOS waittime in milliseconds for IPv4", () => {
+    setPlatform("darwin");
+    expect(buildPingArgs("1.1.1.1", 4, 30_000)).toEqual({
+      command: "ping",
+      argv: ["-c", "1", "-W", "30000", "-t", "30", "1.1.1.1"],
+    });
+  });
+
+  it("uses ping6 and second-granularity deadlines on Linux", () => {
+    setPlatform("linux");
+    expect(buildPingArgs("2606:4700:4700::1111", 6, 2_500)).toEqual({
+      command: "ping6",
+      argv: ["-c", "1", "-W", "3", "-w", "3", "2606:4700:4700::1111"],
+    });
+  });
+
+  it("never lets a sub-second timeout round down to a 0s deadline", () => {
+    setPlatform("linux");
+    expect(buildPingArgs("1.1.1.1", 4, 10).argv).toEqual([
+      "-c", "1", "-W", "1", "-w", "1", "1.1.1.1",
+    ]);
+  });
+});
+
+describe("parseRtt", () => {
+  it("reads an inline time from ping6 output", () => {
+    const stdout = [
+      "PING6(56=40+8+8 bytes) ::1 --> 2606:4700:4700::1111",
+      "16 bytes from 2606:4700:4700::1111, icmp_seq=0 hlim=57 time=81.843 ms",
+    ].join("\n");
+    expect(parseRtt(stdout)).toBeCloseTo(81.84, 1);
   });
 });
 

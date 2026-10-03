@@ -35,11 +35,20 @@ const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
 
 const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
-export function relativeTime(date: Date | string | number | null | undefined): string {
+/**
+ * `now` is a parameter rather than an implicit `Date.now()` so a client
+ * component can pin it across a render pass. Reading the clock mid-render makes
+ * the output differ between SSR and hydration ("30 seconds ago" vs "29"), which
+ * React reports as a mismatch; see `components/relative-time.tsx`.
+ */
+export function relativeTime(
+  date: Date | string | number | null | undefined,
+  now: number = Date.now(),
+): string {
   if (date === null || date === undefined) return "never";
   const value = date instanceof Date ? date.getTime() : new Date(date).getTime();
   if (Number.isNaN(value)) return "—";
-  const diff = value - Date.now();
+  const diff = value - now;
   for (const [unit, ms] of RELATIVE_UNITS) {
     if (Math.abs(diff) >= ms || unit === "second") {
       return rtf.format(Math.round(diff / ms), unit);

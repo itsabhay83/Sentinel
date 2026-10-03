@@ -7,7 +7,8 @@ import type { MonitorStatus } from "@sentinel/shared";
 import { RegionDots, StatusPill, UptimeBar } from "@/components/status";
 import { Input } from "@/components/ui";
 import type { DashboardMonitor } from "@/lib/queries";
-import { cn, formatMs, formatPercent, relativeTime } from "@/lib/utils";
+import { RelativeTime } from "@/components/relative-time";
+import { cn, formatMs, formatPercent } from "@/lib/utils";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -141,9 +142,10 @@ export function MonitorList({ monitors }: { monitors: DashboardMonitor[] }) {
                   <span className="tnum w-16 text-right text-sm text-ink-2">{m.lastLatencyMs == null ? "—" : formatMs(m.lastLatencyMs)}</span>
                 </div>
 
-                <span className="hidden w-24 text-right text-xs text-ink-3 lg:block">
-                  {m.lastCheckAt ? relativeTime(m.lastCheckAt) : "never"}
-                </span>
+                <RelativeTime
+                  value={m.lastCheckAt}
+                  className="hidden w-24 text-right text-xs text-ink-3 lg:block"
+                />
               </Link>
             ))}
           </div>
