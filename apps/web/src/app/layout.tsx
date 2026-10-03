@@ -24,13 +24,22 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/*
+ * Scroll entrances start hidden, and the only thing that ever reveals them is
+ * JavaScript. Stamping `.js` on <html> before first paint is what lets the
+ * stylesheet apply `opacity: 0` exclusively to visitors who will also get the
+ * effect that undoes it — without this, scripting-disabled visitors would meet
+ * a page of permanently invisible sections. It has to run inline and first:
+ * anything deferred would land after the paint it exists to configure.
+ */
+const JS_ENABLED = "document.documentElement.classList.add('js')";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh bg-canvas text-ink antialiased">
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        <script dangerouslySetInnerHTML={{ __html: JS_ENABLED }} />
+        <ClerkProvider>{children}</ClerkProvider>
       </body>
     </html>
   );

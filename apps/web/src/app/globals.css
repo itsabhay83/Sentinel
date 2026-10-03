@@ -129,7 +129,7 @@
 @keyframes sentinel-fade-up {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -148,5 +148,332 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+ * Landing page
+ *
+ * Everything below is used only by `/` and `src/components/landing/*`. It is
+ * appended rather than merged into the blocks above so the app's own design
+ * tokens stay the single source of truth: no new colours are introduced here,
+ * only motion and a handful of composition helpers.
+ * ========================================================================== */
+
+/*
+ * Scroll entrances are gated on `.js`, which an inline script stamps onto <html>
+ * while the document is still parsing. Without that gate a visitor with
+ * scripting disabled would get a page of permanently invisible sections, since
+ * nothing would ever be left to flip them to their revealed state.
+ */
+.js [data-reveal="pending"] {
+  opacity: 0;
+}
+
+[data-reveal="shown"] {
+  animation: sentinel-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Radar sweep behind the fold. A conic gradient rotated as one layer costs a
+ * single composited transform, where redrawing a swept arc would repaint. */
+@keyframes sentinel-radar {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sentinel-radar {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 296deg,
+    color-mix(in oklab, var(--color-accent) 70%, transparent) 348deg,
+    color-mix(in oklab, var(--color-accent) 90%, transparent) 358deg,
+    transparent 360deg
+  );
+  opacity: 0.07;
+  animation: sentinel-radar 8s linear infinite;
+  mask-image: radial-gradient(circle at center, #000 10%, transparent 68%);
+  -webkit-mask-image: radial-gradient(circle at center, #000 10%, transparent 68%);
+}
+
+/* 32px dot grid. Kept at ~3.5% so it reads as texture, never as content. */
+.sentinel-dotgrid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.035) 1px, transparent 0);
+  background-size: 32px 32px;
+}
+
+/*
+ * Line and checkmark drawing. `--sentinel-draw` carries the path length so one
+ * keyframe serves paths of any length; every consumer sets `pathLength="100"`
+ * on the SVG element, which normalises it away in practice.
+ */
+@keyframes sentinel-draw {
+  from {
+    stroke-dashoffset: var(--sentinel-draw, 100);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+[data-draw] {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+[data-draw][data-drawn="true"] {
+  animation: sentinel-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* No JS means no observer will ever fire, so the finished line is the only
+ * honest resting state. */
+html:not(.js) [data-draw] {
+  stroke-dashoffset: 0;
+}
+
+/* Region dot halo on the world map. `transform-box: fill-box` is what makes a
+ * percentage transform-origin resolve against the circle instead of the whole
+ * SVG viewport, which would fling every halo toward the top-left. */
+@keyframes sentinel-ping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.sentinel-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sentinel-ping 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Probe → target arc. The dash travels the path rather than the path growing,
+ * so the browser animates one property and never re-tessellates the curve. */
+@keyframes sentinel-arc {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    stroke-dashoffset: -60;
+    opacity: 0;
+  }
+}
+
+.sentinel-arc {
+  stroke-dasharray: 16 100;
+  animation: sentinel-arc 4s linear infinite;
+}
+
+/* One-pass sheen across the highlighted pricing tier as it enters. */
+@keyframes sentinel-shimmer {
+  from {
+    transform: translateX(-160%) skewX(-12deg);
+  }
+  to {
+    transform: translateX(360%) skewX(-12deg);
+  }
+}
+
+[data-reveal="shown"] .sentinel-shimmer {
+  animation: sentinel-shimmer 1200ms cubic-bezier(0.22, 1, 0.36, 1) 260ms both;
+}
+
+/*
+ * Card hover. Only `transform` moves; the border is a colour change, which
+ * composites without the layout cost of animating a shadow.
+ */
+.sentinel-card {
+  transition:
+    transform 200ms ease-out,
+    border-color 200ms ease-out,
+    background-color 200ms ease-out;
+}
+
+.sentinel-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-line-strong);
+}
+
+.sentinel-cta-arrow {
+  transition: transform 180ms ease-out;
+}
+
+.group:hover .sentinel-cta-arrow,
+.sentinel-cta:hover .sentinel-cta-arrow {
+  transform: translateX(4px);
+}
+
+/* FAQ disclosure. `grid-template-rows: 0fr → 1fr` animates to the content's own
+ * height, so no max-height has to be guessed and nothing clips at 390px. */
+.sentinel-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sentinel-disclosure[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.sentinel-disclosure > * {
+  overflow: hidden;
+}
+
+/* Status-page mock: tilted at rest, flat on hover. */
+.sentinel-tilt {
+  transform: perspective(1600px) rotateY(-9deg) rotateX(3deg) scale(0.985);
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sentinel-tilt:hover,
+.sentinel-tilt:focus-within {
+  transform: perspective(1600px) rotateY(0deg) rotateX(0deg) scale(1);
+}
+
+/* Waterfall bars grow from zero once, on entrance. Width is deliberately the
+ * animated property here: a scaleX would squash the mono millisecond label
+ * riding inside the bar. One-shot and off the scroll path, so it is cheap. */
+.sentinel-bar {
+  width: 0;
+  transition: width 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal="shown"] .sentinel-bar,
+html:not(.js) .sentinel-bar {
+  width: var(--sentinel-bar-width);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * The global reduce block collapses durations but leaves delays alone, so a
+   * staggered group would still blink in over half a second. Zero them, then
+   * pin every landing animation to the frame it is meant to rest on.
+   */
+  *,
+  *::before,
+  *::after {
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .js [data-reveal="pending"] {
+    opacity: 1;
+  }
+
+  .sentinel-radar,
+  .sentinel-ping {
+    animation: none;
+  }
+
+  .sentinel-arc {
+    display: none;
+  }
+
+  [data-draw] {
+    stroke-dashoffset: 0;
+  }
+
+  .sentinel-bar {
+    width: var(--sentinel-bar-width);
+  }
+
+  .sentinel-tilt {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------- additions
+ * Kept below the reduced-motion block on purpose: nothing here reintroduces an
+ * animation the block above silences. The global `animation-duration: 0.01ms`
+ * rule still lands on every keyframe defined here, because it matches `*`.
+ * ------------------------------------------------------------------------ */
+
+/*
+ * Stroke drawing is driven by the reveal wrapper rather than its own observer.
+ * The pipeline line and the security checkmarks are always children of a
+ * `<Reveal>`, so one shared selector saves each of them a second
+ * IntersectionObserver and keeps the line and the nodes on one clock.
+ */
+[data-reveal="shown"] [data-draw] {
+  animation: sentinel-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * Pipeline nodes light as the line reaches them. This is a colour/scale change
+ * rather than a `sentinel-fade-up`, because the node is already in place — what
+ * changes is that it becomes live, and a node sliding up would read as a
+ * second, competing entrance next to the line that is drawing past it.
+ */
+@keyframes sentinel-node-on {
+  from {
+    opacity: 0.35;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-reveal="shown"] .sentinel-node {
+  animation: sentinel-node-on 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sentinel-node {
+  opacity: 0.35;
+}
+
+/* No observer will ever fire without scripting, so "already lit" is the only
+ * honest resting state. */
+html:not(.js) .sentinel-node {
+  opacity: 1;
+}
+
+/* Map pin tooltip. Pure CSS hover so the map stays a server component — there
+ * is no state here, only a pointer. */
+.sentinel-pin-tip {
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.sentinel-pin:hover .sentinel-pin-tip,
+.sentinel-pin:focus-visible .sentinel-pin-tip {
+  opacity: 1;
+}
+
+/* Pricing toggle knob. The slight overshoot is the whole point of the spring —
+ * `ease-out` alone makes a 20px travel feel mechanical. */
+.sentinel-knob {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* API tab underline. One transform on a single element beats animating a
+ * border on each of three tabs. */
+.sentinel-tab-underline {
+  transition: transform 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sentinel-node {
+    opacity: 1;
   }
 }
